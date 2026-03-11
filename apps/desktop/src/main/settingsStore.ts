@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { app, safeStorage } from 'electron';
-import type { AppSettings } from '../types/settings';
-import { DEFAULT_SETTINGS } from '../types/settings';
+import type { AppSettings } from '../renderer/src/types/settings';
+import { DEFAULT_SETTINGS } from '../renderer/src/types/settings';
 
 const SETTINGS_FILE_NAME = 'settings.secure.json';
 

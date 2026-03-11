@@ -9,10 +9,11 @@ interface Message {
 }
 
 type ConnectionStatus = 'connected' | 'degraded' | 'offline';
-
 type RateLimitStatus = 'idle' | 'waiting';
 
-const statusColorMap: Record<ConnectionStatus | RateLimitStatus, string> = {
+type BadgeTone = ConnectionStatus | RateLimitStatus;
+
+const statusColorMap: Record<BadgeTone, string> = {
   connected: '#16a34a',
   degraded: '#ca8a04',
   offline: '#dc2626',
@@ -38,7 +39,10 @@ const formatSyncTime = (lastSyncedAt: Date | null) => {
   }).format(lastSyncedAt);
 };
 
-const StatusBadge = ({ label, value, tone }: { label: string; value: string; tone: ConnectionStatus | RateLimitStatus }) => (
+const buildResponse = (userInput: string) =>
+  `"${userInput}" 요청을 분석해 Confluence 문서와 최근 대화 맥락을 반영한 초안을 생성했습니다.`;
+
+const StatusBadge = ({ label, value, tone }: { label: string; value: string; tone: BadgeTone }) => (
   <span
     style={{
       display: 'inline-flex',
@@ -83,15 +87,7 @@ export function ChatPage() {
       setStreamingMessage((prev) => `${prev}${chunk} `);
     }
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `m${prev.length + 1}`,
-        role: 'assistant',
-        content: sourceText,
-      },
-    ]);
-
+    setMessages((prev) => [...prev, { id: `m${prev.length + 1}`, role: 'assistant', content: sourceText }]);
     setStreamingMessage('');
     setRateLimitStatus('idle');
   };
@@ -101,17 +97,10 @@ export function ChatPage() {
     if (!canSend) return;
 
     const userInput = prompt.trim();
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `m${prev.length + 1}`,
-        role: 'user',
-        content: userInput,
-      },
-    ]);
+    setMessages((prev) => [...prev, { id: `m${prev.length + 1}`, role: 'user', content: userInput }]);
 
     setPrompt('');
-    await appendStreamingResponse(`"${userInput}" 요청을 분석해 Confluence 문서와 최근 대화 맥락을 반영한 초안을 생성했습니다.`);
+    await appendStreamingResponse(buildResponse(userInput));
   };
 
   return (
