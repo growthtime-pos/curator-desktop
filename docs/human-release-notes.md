@@ -47,3 +47,55 @@
 ### Validation
 - ✅ `python -m compileall apps/backend/src/main.py`
 - ✅ `node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); JSON.parse(require('fs').readFileSync('apps/desktop/package.json','utf8')); console.log('json ok')"`
+
+## [2026-03-12] Backend API Bootstrap
+### Added
+- 백엔드에 `POST /v1/chat`, `GET /v1/sync/status` 엔드포인트를 추가했다.
+- 채팅 요청/응답 및 동기화 상태를 위한 스키마 모델을 추가했다.
+- 백엔드 API 사용 예시와 다음 구현 예정 항목을 `apps/backend/README.md`에 문서화했다.
+
+### Changed
+- FastAPI 애플리케이션 버전을 `0.2.0`으로 올리고 헬스체크 응답을 명시적 모델 기반으로 정리했다.
+
+### Fixed
+- 없음.
+
+### Validation
+- ✅ `python -m compileall apps/backend/src`
+- ✅ `python - <<'PY'
+from apps.backend.src.main import app
+paths = sorted(route.path for route in app.routes)
+print(paths)
+PY`
+
+## [2026-03-12] Confluence Search/Summary Pipeline + Tests
+### Added
+- Confluence 환경 변수 로더 및 REST API 클라이언트를 추가했다.
+- `/v1/chat`에 Confluence 검색/본문 조회/요약 파이프라인을 연결했다.
+- 백엔드 API/서비스 단위 테스트(`unittest`)를 추가했다.
+
+### Changed
+- `POST /v1/chat` 요청 스키마에 `space_key`, `top_k`를 추가하고, 응답에 `retrieved_documents`를 포함하도록 확장했다.
+- 앱 버전을 `0.3.0`으로 업데이트했다.
+
+### Fixed
+- Confluence 미설정 환경에서도 fallback 응답을 반환하도록 처리해 개발 환경 안정성을 높였다.
+
+### Validation
+- ✅ `python -m compileall apps/backend/src`
+- ✅ `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+
+## [2026-03-12] Backend CI (GitHub Actions) Added
+### Added
+- GitHub Actions 워크플로우(`.github/workflows/backend-tests.yml`)를 추가했다.
+- `apps/backend` 변경 시 Python 3.12 환경에서 compile check와 unit test를 자동 실행하도록 구성했다.
+
+### Changed
+- 없음.
+
+### Fixed
+- 수동으로만 수행하던 백엔드 테스트 검증 절차를 CI 기반으로 보완했다.
+
+### Validation
+- ✅ `python -m compileall apps/backend/src`
+- ✅ `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
