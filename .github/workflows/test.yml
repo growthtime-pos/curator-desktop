@@ -22,11 +22,14 @@ jobs:
         run: npm ci
 
       - name: Run type check
-        run: npm run typecheck --workspace apps/desktop
+        run: npm run typecheck -w apps/desktop
 
   playwright:
     name: Playwright E2E Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
     steps:
       - uses: actions/checkout@v4
 
@@ -37,15 +40,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: .
 
       - name: Install Playwright browsers
-        run: npx --workspace apps/desktop playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Create screenshots directory
-        run: mkdir -p apps/desktop/e2e/screenshots
+        run: mkdir -p e2e/screenshots
 
       - name: Run Playwright tests
-        run: npm run test --workspace apps/desktop
+        run: npx playwright test
 
       - name: Upload test screenshots
         uses: actions/upload-artifact@v4
@@ -53,6 +57,7 @@ jobs:
         with:
           name: playwright-screenshots
           path: apps/desktop/e2e/screenshots/
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Upload Playwright report
@@ -61,6 +66,7 @@ jobs:
         with:
           name: playwright-report
           path: apps/desktop/playwright-report/
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Upload test results
@@ -69,6 +75,7 @@ jobs:
         with:
           name: playwright-test-results
           path: apps/desktop/test-results/
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Comment screenshots on PR
@@ -77,7 +84,6 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const path = require('path');
 
             const screenshotDir = 'apps/desktop/e2e/screenshots';
             if (!fs.existsSync(screenshotDir)) return;
@@ -85,14 +91,8 @@ jobs:
             const files = fs.readdirSync(screenshotDir).filter(f => f.endsWith('.png'));
             if (files.length === 0) return;
 
-            const { data: { artifacts_url } } = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: context.runId,
-            });
-
             const body = [
-              '## 🖥️ Playwright Test Screenshots',
+              '## Playwright Test Screenshots',
               '',
               `**${files.length}** screenshot(s) captured from E2E tests.`,
               '',
@@ -100,12 +100,11 @@ jobs:
               '',
               '| Screenshot | File |',
               '|---|---|',
-              ...files.map(f => `| 📸 | \`${f}\` |`),
+              ...files.map(f => `| screenshot | \`${f}\` |`),
               '',
-              `[📥 Download artifacts](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              `[Download artifacts](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
             ].join('\n');
 
-            // Find and update existing comment or create new
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,

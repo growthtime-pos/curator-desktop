@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { HashRouter, NavLink } from 'react-router-dom';
 import { AppRoutes } from './routes/AppRoutes';
 
-const navStyle: CSSProperties = {
+const navStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: 0,
@@ -10,16 +10,16 @@ const navStyle: CSSProperties = {
   borderBottom: '1px solid var(--border-primary)',
   background: 'var(--bg-secondary)',
   height: 44,
-  WebkitAppRegion: 'drag' as never,
-};
+  WebkitAppRegion: 'drag',
+} satisfies Record<string, unknown>;
 
-const logoStyle: CSSProperties = {
+const logoStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
   marginRight: 24,
-  WebkitAppRegion: 'no-drag' as never,
-};
+  WebkitAppRegion: 'no-drag',
+} satisfies Record<string, unknown>;
 
 const logoIconStyle: CSSProperties = {
   width: 22,
@@ -42,7 +42,7 @@ const logoTextStyle: CSSProperties = {
   letterSpacing: '-0.02em',
 };
 
-const linkBase: CSSProperties = {
+const linkBase = {
   fontFamily: 'var(--font-mono)',
   fontSize: 12,
   fontWeight: 500,
@@ -50,8 +50,8 @@ const linkBase: CSSProperties = {
   padding: '8px 14px',
   borderRadius: 'var(--radius-sm)',
   transition: 'all 0.15s ease',
-  WebkitAppRegion: 'no-drag' as never,
-};
+  WebkitAppRegion: 'no-drag',
+} satisfies Record<string, unknown>;
 
 const linkStyle = ({ isActive }: { isActive: boolean }): CSSProperties => ({
   ...linkBase,
@@ -59,13 +59,13 @@ const linkStyle = ({ isActive }: { isActive: boolean }): CSSProperties => ({
   background: isActive ? 'var(--accent-dim)' : 'transparent',
 });
 
-const versionStyle: CSSProperties = {
+const versionStyle = {
   marginLeft: 'auto',
   fontSize: 11,
   color: 'var(--text-muted)',
   fontFamily: 'var(--font-mono)',
-  WebkitAppRegion: 'no-drag' as never,
-};
+  WebkitAppRegion: 'no-drag',
+} satisfies Record<string, unknown>;
 
 export default function App() {
   return (
