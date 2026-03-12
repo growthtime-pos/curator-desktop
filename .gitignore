@@ -13,6 +13,12 @@ dist/
 dist-electron/
 out/
 
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+e2e/screenshots/
+
 # OS
 .DS_Store
 Thumbs.db

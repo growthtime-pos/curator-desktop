@@ -10,7 +10,10 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
-    "preview": "electron-vite preview"
+    "preview": "electron-vite preview",
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:report": "npx playwright show-report"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
+    "@playwright/test": "^1.58.2",
     "@types/node": "^22.19.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

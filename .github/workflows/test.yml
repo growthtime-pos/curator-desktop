@@ -1,0 +1,133 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run type check
+        run: npm run typecheck --workspace apps/desktop
+
+  playwright:
+    name: Playwright E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx --workspace apps/desktop playwright install --with-deps chromium
+
+      - name: Create screenshots directory
+        run: mkdir -p apps/desktop/e2e/screenshots
+
+      - name: Run Playwright tests
+        run: npm run test --workspace apps/desktop
+
+      - name: Upload test screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-screenshots
+          path: apps/desktop/e2e/screenshots/
+          retention-days: 30
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: apps/desktop/playwright-report/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results
+          path: apps/desktop/test-results/
+          retention-days: 30
+
+      - name: Comment screenshots on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const screenshotDir = 'apps/desktop/e2e/screenshots';
+            if (!fs.existsSync(screenshotDir)) return;
+
+            const files = fs.readdirSync(screenshotDir).filter(f => f.endsWith('.png'));
+            if (files.length === 0) return;
+
+            const { data: { artifacts_url } } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+
+            const body = [
+              '## 🖥️ Playwright Test Screenshots',
+              '',
+              `**${files.length}** screenshot(s) captured from E2E tests.`,
+              '',
+              'Screenshots are available in the **playwright-screenshots** artifact of this workflow run.',
+              '',
+              '| Screenshot | File |',
+              '|---|---|',
+              ...files.map(f => `| 📸 | \`${f}\` |`),
+              '',
+              `[📥 Download artifacts](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+            ].join('\n');
+
+            // Find and update existing comment or create new
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.body?.includes('Playwright Test Screenshots') && c.user?.login === 'github-actions[bot]'
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
