@@ -11,7 +11,7 @@ test.describe('Chat Page', () => {
 
   test('should display navigation with Curator branding', async ({ page }) => {
     await expect(page.locator('nav')).toBeVisible();
-    await expect(page.getByText('Curator')).toBeVisible();
+    await expect(page.locator('nav').getByText('Curator', { exact: true })).toBeVisible();
     await expect(page.getByText('> chat')).toBeVisible();
     await expect(page.getByText('> settings')).toBeVisible();
   });
@@ -29,8 +29,8 @@ test.describe('Chat Page', () => {
   });
 
   test('should display status badges in header', async ({ page }) => {
-    await expect(page.getByText('backend')).toBeVisible();
-    await expect(page.getByText('connected')).toBeVisible();
+    await expect(page.locator('header').getByText('backend', { exact: true })).toBeVisible();
+    await expect(page.locator('header').getByText('connected')).toBeVisible();
   });
 
   test('should have input area with prompt symbol', async ({ page }) => {
@@ -68,7 +68,7 @@ test.describe('Chat Page', () => {
 
   test('should switch active conversation in sidebar', async ({ page }) => {
     await page.getByRole('button', { name: 'Confluence Sync' }).click();
-    await expect(page.getByText('Confluence Sync')).toBeVisible();
+    await expect(page.locator('header').getByText('Confluence Sync')).toBeVisible();
   });
 
   test('should take full page screenshot', async ({ page }) => {

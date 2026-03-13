@@ -12,6 +12,7 @@ export default defineConfig({
     alias: {
       '@renderer': resolve(__dirname, 'src/renderer/src'),
     },
+    dedupe: ['react', 'react-dom'],
   },
   plugins: [react()],
   server: {
