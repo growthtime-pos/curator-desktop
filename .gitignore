@@ -17,7 +17,7 @@ out/
 test-results/
 playwright-report/
 blob-report/
-e2e/screenshots/
+**/e2e/screenshots/
 
 # OS
 .DS_Store
