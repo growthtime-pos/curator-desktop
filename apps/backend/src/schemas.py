@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -10,11 +12,15 @@ class SyncStatusResponse(BaseModel):
     last_synced_at: str | None = None
 
 
+ConfluenceVersion = Literal["auto", "cloud", "server"]
+
+
 class ConfluenceConnectionOverride(BaseModel):
     base_url: str = Field(min_length=1, description="Confluence base URL override")
     username: str = Field(min_length=1, description="Confluence id/username")
     password: str = Field(min_length=1, description="Confluence password")
     space_key: str | None = Field(default=None, description="Optional Confluence space key")
+    version: ConfluenceVersion = Field(default="auto", description="Confluence version: auto/cloud/server")
 
 
 class ChatRequest(BaseModel):

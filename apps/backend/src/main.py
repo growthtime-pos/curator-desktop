@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from .schemas import ChatRequest, ChatResponse, HealthResponse, SyncStatusResponse
 from .services.chat_service import ChatService
 
-app = FastAPI(title="Curator Backend", version="0.3.0")
+app = FastAPI(title="Curator Backend", version="0.4.0")
 chat_service = ChatService()
 
 

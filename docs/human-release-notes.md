@@ -115,3 +115,20 @@ PY`
 ### Validation
 - ✅ `python -m compileall apps/backend/src`
 - ✅ `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+
+## [2026-03-12] Confluence Version-aware Routing
+### Added
+- Confluence 버전 모드(`auto`, `cloud`, `server`)를 요청/환경 변수에서 지정할 수 있게 추가했다.
+- `auto` 모드에서 Cloud/Server API 경로를 자동 판별하는 로직을 추가했다.
+- 버전 분기 로직 검증용 테스트(`test_confluence_client.py`)를 추가했다.
+
+### Changed
+- `POST /v1/chat`의 `confluence` 객체에 `version` 필드를 추가했다.
+- 앱 버전을 `0.4.0`으로 업데이트했다.
+
+### Fixed
+- Confluence 배포 버전에 따라 API prefix가 달라 발생할 수 있는 검색 실패 가능성을 완화했다.
+
+### Validation
+- ✅ `python -m compileall apps/backend/src`
+- ✅ `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`

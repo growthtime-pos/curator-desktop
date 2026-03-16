@@ -22,6 +22,7 @@ class ChatServiceTest(unittest.TestCase):
             confluence_username="bot",
             confluence_password="pw",
             confluence_space_key="ENG",
+            confluence_version="auto",
         )
         service = ChatService(config=config, confluence_client=FakeConfluenceClient())
 
@@ -38,6 +39,7 @@ class ChatServiceTest(unittest.TestCase):
             confluence_username="",
             confluence_password="",
             confluence_space_key="ENG",
+            confluence_version="auto",
         )
         service = ChatService(config=config)
 
@@ -51,6 +53,7 @@ class ChatServiceTest(unittest.TestCase):
             confluence_username="",
             confluence_password="",
             confluence_space_key="ENG",
+            confluence_version="auto",
         )
         service = ChatService(config=config, confluence_client=FakeConfluenceClient())
 

@@ -16,9 +16,13 @@ FastAPI 기반 백엔드 애플리케이션입니다.
 - `CONFLUENCE_USERNAME`
 - `CONFLUENCE_PASSWORD`
 - `CONFLUENCE_SPACE_KEY` (기본값: `ENG`)
+- `CONFLUENCE_VERSION` (`auto` | `cloud` | `server`, 기본값: `auto`)
 
 ### 2) 요청 단위 override (테스트용 주소 즉시 적용)
 `POST /v1/chat` 바디에 `confluence` 객체를 넣으면 해당 요청에서만 지정 주소/계정으로 검색합니다.
+
+- `version` 지정 시 해당 버전 경로로 동작
+- `version: "auto"` 시 `/wiki/rest/api/...`(Cloud) 먼저 시도 후 `/rest/api/...`(Server/DC) 감지
 
 ```json
 {
@@ -28,7 +32,8 @@ FastAPI 기반 백엔드 애플리케이션입니다.
     "base_url": "https://test-confluence.example",
     "username": "my-id",
     "password": "my-password",
-    "space_key": "ENG"
+    "space_key": "ENG",
+    "version": "auto"
   }
 }
 ```
@@ -55,7 +60,8 @@ curl -s -X POST http://localhost:8000/v1/chat \
       "base_url": "https://test-confluence.example",
       "username": "my-id",
       "password": "my-password",
-      "space_key": "ENG"
+      "space_key": "ENG",
+      "version": "server"
     }
   }'
 ```
@@ -71,4 +77,4 @@ python -m unittest discover -s tests -p 'test_*.py'
 
 - 검색 결과 re-ranking(문서 최신성/키워드 점수)
 - 요약 품질 개선(섹션 기반 요약, 중복 제거)
-- 데스크톱 설정(`apiBaseUrl`, `id/pw`, `spaceKey`) 기반 연동 고도화
+- 데스크톱 설정(`apiBaseUrl`, `id/pw`, `spaceKey`, `version`) 기반 연동 고도화

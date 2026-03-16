@@ -107,3 +107,20 @@
   - Desktop 설정 화면에 id/pw/space/test-url 입력 UX 반영
 - Blockers:
   - 없음
+
+## Handoff
+- Goal: Confluence 버전(Cloud/Server/DC)별 경로 차이를 자동/명시 모드로 처리
+- Changed:
+  - `confluence.version` 요청 필드와 `CONFLUENCE_VERSION` 환경 변수 추가
+  - Confluence client에 `mode`(`auto|cloud|server`) 도입
+  - auto 모드에서 cloud→server 순으로 systemInfo endpoint probe 후 API prefix 결정
+- Contracts Updated:
+  - `POST /v1/chat` request `confluence.version` 추가
+- Validation:
+  - `python -m compileall apps/backend/src`
+  - `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+- Next Actions:
+  - 감지 실패 시 응답에 감지 로그 힌트 포함 여부 검토
+  - Atlassian Cloud 특화 인증(email+token) 옵션 병행 지원 검토
+- Blockers:
+  - 없음

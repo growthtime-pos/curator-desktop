@@ -18,6 +18,7 @@ class ChatService:
             base_url=config.confluence_base_url,
             username=config.confluence_username,
             password=config.confluence_password,
+            mode=config.confluence_version if config.confluence_version in {"auto", "cloud", "server"} else "auto",
         )
 
     @staticmethod
@@ -29,6 +30,7 @@ class ChatService:
             base_url=payload.confluence.base_url,
             username=payload.confluence.username,
             password=payload.confluence.password,
+            mode=payload.confluence.version,
         )
         space_key = payload.confluence.space_key or payload.space_key or default_space_key
         return client, space_key
@@ -64,8 +66,8 @@ class ChatService:
                     title="Confluence not configured",
                     url="internal://curator/backend/configuration",
                     excerpt=(
-                        "요청 본문에 confluence.base_url/username/password를 전달하거나 "
-                        "환경 변수(CONFLUENCE_BASE_URL/USERNAME/PASSWORD)를 설정하세요."
+                        "요청 본문에 confluence.base_url/username/password/version을 전달하거나 "
+                        "환경 변수(CONFLUENCE_BASE_URL/USERNAME/PASSWORD/VERSION)를 설정하세요."
                     ),
                 )
             ]
@@ -88,7 +90,7 @@ class ChatService:
                 ConfluenceDocument(
                     id="search-empty",
                     title="검색 결과 없음",
-                    url=f"{base_url}/wiki",
+                    url=f"{base_url}",
                     excerpt=f'질의어 "{payload.message}"에 해당하는 Confluence 문서를 찾지 못했습니다.',
                 )
             ]
@@ -97,7 +99,7 @@ class ChatService:
                 ConfluenceDocument(
                     id="search-error",
                     title="Confluence 검색 실패",
-                    url=f"{base_url}/wiki",
+                    url=f"{base_url}",
                     excerpt=f"Confluence API 호출 중 오류가 발생했습니다: {exc}",
                 )
             ]

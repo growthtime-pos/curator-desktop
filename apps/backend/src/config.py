@@ -8,6 +8,7 @@ class BackendConfig:
     confluence_username: str
     confluence_password: str
     confluence_space_key: str
+    confluence_version: str
 
     @property
     def is_confluence_configured(self) -> bool:
@@ -26,4 +27,5 @@ def load_config() -> BackendConfig:
         confluence_username=getenv("CONFLUENCE_USERNAME", ""),
         confluence_password=getenv("CONFLUENCE_PASSWORD", ""),
         confluence_space_key=getenv("CONFLUENCE_SPACE_KEY", "ENG"),
+        confluence_version=getenv("CONFLUENCE_VERSION", "auto"),
     )
