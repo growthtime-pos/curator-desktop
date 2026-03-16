@@ -1,0 +1,61 @@
+name: Backend Tests
+
+on:
+  push:
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/backend-tests.yml'
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    env:
+      ATLASSIAN_URL_SECRET: ${{ secrets.ATLASSIAN_URL }}
+      ATLASSIAN_ID_SECRET: ${{ secrets.ATLASSIAN_ID }}
+      ATALSSIAN_PW_SECRET: ${{ secrets.ATALSSIAN_PW }}
+      ATLASSIAN_URL_VAR: ${{ vars.ATLASSIAN_URL }}
+      ATLASSIAN_ID_VAR: ${{ vars.ATLASSIAN_ID }}
+      ATALSSIAN_PW_VAR: ${{ vars.ATALSSIAN_PW }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Resolve Atlassian env aliases
+        run: |
+          URL_VALUE="${ATLASSIAN_URL_SECRET:-$ATLASSIAN_URL_VAR}"
+          ID_VALUE="${ATLASSIAN_ID_SECRET:-$ATLASSIAN_ID_VAR}"
+          PW_VALUE="${ATALSSIAN_PW_SECRET:-$ATALSSIAN_PW_VAR}"
+
+          if [ -z "$URL_VALUE" ] || [ -z "$ID_VALUE" ] || [ -z "$PW_VALUE" ]; then
+            echo "Missing required GitHub env/secrets: ATLASSIAN_URL, ATLASSIAN_ID, ATALSSIAN_PW"
+            exit 1
+          fi
+
+          {
+            echo "ATLASSIAN_URL=$URL_VALUE"
+            echo "ATLASSIAN_ID=$ID_VALUE"
+            echo "ATALSSIAN_PW=$PW_VALUE"
+          } >> "$GITHUB_ENV"
+
+          echo "Atlassian env wired in GitHub Actions (values masked)."
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "fastapi>=0.115.0" "uvicorn[standard]>=0.32.0"
+
+      - name: Compile check
+        run: python -m compileall apps/backend/src
+
+      - name: Run backend unit tests
+        run: cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'
