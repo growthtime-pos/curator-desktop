@@ -99,3 +99,19 @@ PY`
 ### Validation
 - ✅ `python -m compileall apps/backend/src`
 - ✅ `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+
+## [2026-03-12] Confluence Dynamic URL + ID/PW Auth (Read-only)
+### Added
+- `POST /v1/chat` 요청에서 Confluence 접속 정보를 직접 받을 수 있는 `confluence` 필드를 추가했다.
+- 테스트용 Confluence 주소를 요청마다 다르게 넣어 즉시 검색 검증할 수 있도록 지원했다.
+
+### Changed
+- Confluence 인증 방식을 email/token에서 id/pw(Basic Auth) 기준으로 정리했다.
+- 환경 변수 키를 `CONFLUENCE_USERNAME`, `CONFLUENCE_PASSWORD` 중심으로 변경했다.
+
+### Fixed
+- Confluence 연동이 환경 변수 고정값에만 의존하던 제약을 완화했다.
+
+### Validation
+- ✅ `python -m compileall apps/backend/src`
+- ✅ `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`

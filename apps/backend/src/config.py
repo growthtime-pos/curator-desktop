@@ -5,8 +5,8 @@ from os import getenv
 @dataclass(frozen=True)
 class BackendConfig:
     confluence_base_url: str
-    confluence_email: str
-    confluence_api_token: str
+    confluence_username: str
+    confluence_password: str
     confluence_space_key: str
 
     @property
@@ -14,8 +14,8 @@ class BackendConfig:
         return all(
             [
                 self.confluence_base_url.strip(),
-                self.confluence_email.strip(),
-                self.confluence_api_token.strip(),
+                self.confluence_username.strip(),
+                self.confluence_password.strip(),
             ]
         )
 
@@ -23,7 +23,7 @@ class BackendConfig:
 def load_config() -> BackendConfig:
     return BackendConfig(
         confluence_base_url=getenv("CONFLUENCE_BASE_URL", "").rstrip("/"),
-        confluence_email=getenv("CONFLUENCE_EMAIL", ""),
-        confluence_api_token=getenv("CONFLUENCE_API_TOKEN", ""),
+        confluence_username=getenv("CONFLUENCE_USERNAME", ""),
+        confluence_password=getenv("CONFLUENCE_PASSWORD", ""),
         confluence_space_key=getenv("CONFLUENCE_SPACE_KEY", "ENG"),
     )

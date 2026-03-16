@@ -19,8 +19,8 @@ class ChatServiceTest(unittest.TestCase):
     def test_build_response_uses_confluence_documents(self):
         config = BackendConfig(
             confluence_base_url="https://conf.example",
-            confluence_email="bot@example.com",
-            confluence_api_token="token",
+            confluence_username="bot",
+            confluence_password="pw",
             confluence_space_key="ENG",
         )
         service = ChatService(config=config, confluence_client=FakeConfluenceClient())
@@ -35,8 +35,8 @@ class ChatServiceTest(unittest.TestCase):
     def test_build_response_fallback_when_config_missing(self):
         config = BackendConfig(
             confluence_base_url="",
-            confluence_email="",
-            confluence_api_token="",
+            confluence_username="",
+            confluence_password="",
             confluence_space_key="ENG",
         )
         service = ChatService(config=config)
@@ -44,6 +44,30 @@ class ChatServiceTest(unittest.TestCase):
         result = service.build_response(ChatRequest(message="테스트"))
 
         self.assertEqual(result.retrieved_documents[0].id, "local-fallback")
+
+    def test_build_response_uses_request_scoped_confluence_override(self):
+        config = BackendConfig(
+            confluence_base_url="",
+            confluence_username="",
+            confluence_password="",
+            confluence_space_key="ENG",
+        )
+        service = ChatService(config=config, confluence_client=FakeConfluenceClient())
+
+        payload = ChatRequest(
+            message="테스트",
+            confluence={
+                "base_url": "https://temp-confluence.example",
+                "username": "id",
+                "password": "pw",
+                "space_key": "DOC",
+            },
+        )
+        # inject fake client path by replacing resolver output behavior
+        service._build_client_from_request = lambda *_args, **_kwargs: (FakeConfluenceClient(), "DOC")  # type: ignore[method-assign]
+
+        result = service.build_response(payload)
+        self.assertEqual(result.retrieved_documents[0].url, "https://temp-confluence.example/spaces/ENG/pages/123")
 
 
 if __name__ == "__main__":

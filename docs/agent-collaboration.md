@@ -89,3 +89,21 @@
   - Desktop/Backend 통합 smoke test 워크플로우 추가 검토
 - Blockers:
   - 없음
+
+## Handoff
+- Goal: Confluence 주소를 요청 시 동적으로 받아 바로 테스트 가능하게 하고 인증을 id/pw 방식으로 전환
+- Changed:
+  - `ChatRequest`에 `confluence` override 객체(base_url/username/password/space_key) 추가
+  - 환경 변수 인증 키를 `CONFLUENCE_USERNAME/PASSWORD`로 변경
+  - `ChatService`에서 요청 단위 Confluence 연결 정보 우선 사용하도록 확장
+  - Confluence client는 GET만 호출하는 read-only 정책 유지
+- Contracts Updated:
+  - `POST /v1/chat` request에 `confluence` 필드 추가
+- Validation:
+  - `python -m compileall apps/backend/src`
+  - `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+- Next Actions:
+  - 요청 바디의 민감정보(id/pw) 마스킹 로깅 정책 적용
+  - Desktop 설정 화면에 id/pw/space/test-url 입력 UX 반영
+- Blockers:
+  - 없음
