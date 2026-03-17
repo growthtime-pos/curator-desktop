@@ -33,3 +33,94 @@
 - Next Actions:
 - Blockers:
 ```
+
+## Handoff
+- Goal: 백엔드 추가 구현 착수를 위해 최소 API 계약(chat/sync)을 먼저 확정하고 데스크톱 연동 가능한 상태를 만든다.
+- Changed:
+  - `apps/backend/src/main.py`에 chat/sync 엔드포인트 추가
+  - `apps/backend/src/schemas.py`에 요청/응답 모델 추가
+  - `apps/backend/src/services/chat_service.py`에 응답 생성 서비스 추가
+  - `apps/backend/README.md`에 실행/호출 예시 및 향후 계획 문서화
+- Contracts Updated:
+  - `POST /v1/chat` request: `{ message: string, conversation_id?: string }`
+  - `POST /v1/chat` response: `{ conversation_id: string, answer: string, sources: {title,url}[] }`
+  - `GET /v1/sync/status` response: `{ backend: string, last_synced_at: string | null }`
+- Validation:
+  - `python -m compileall apps/backend/src`
+  - FastAPI route 목록 점검 스크립트로 신규 경로 확인
+- Next Actions:
+  - 데스크톱 ChatPage에서 `/v1/chat` 실호출 연결
+  - Settings API 값 기반 인증 헤더 주입 설계
+  - Confluence 연동 어댑터 추가 및 오류/재시도 정책 정의
+- Blockers:
+  - 실제 Confluence 접속 정보 및 인증 정책 미정
+
+## Handoff
+- Goal: Confluence API 실연동과 검색/요약 파이프라인 1차 구현 + 테스트 체계 추가
+- Changed:
+  - `apps/backend/src/config.py` 환경 변수 기반 설정 로더 추가
+  - `apps/backend/src/services/confluence_client.py` Confluence REST API 클라이언트 추가
+  - `apps/backend/src/services/chat_service.py`를 실검색/본문조회/요약 파이프라인으로 확장
+  - `apps/backend/tests/test_chat_service.py`, `apps/backend/tests/test_api.py` 단위 테스트 추가
+- Contracts Updated:
+  - `POST /v1/chat` request에 `space_key`, `top_k` 필드 추가
+  - `POST /v1/chat` response에 `retrieved_documents` 추가
+- Validation:
+  - `python -m compileall apps/backend/src`
+  - `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+- Next Actions:
+  - 실제 Atlassian Cloud/Server 응답 스키마 차이를 흡수하는 어댑터 분리
+  - 검색 결과 정렬 및 요약 품질 개선
+- Blockers:
+  - 운영 Confluence 인증 정보 미제공으로 실환경 호출 검증 미실시
+
+## Handoff
+- Goal: 백엔드 테스트를 GitHub Actions에서 자동 실행 가능하도록 CI 파이프라인 추가
+- Changed:
+  - `.github/workflows/backend-tests.yml` 신규 추가
+  - backend 관련 변경 시 compile check + unittest를 자동 수행하도록 구성
+- Contracts Updated:
+  - API 계약 변경 없음
+- Validation:
+  - `python -m compileall apps/backend/src`
+  - `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+- Next Actions:
+  - 필요 시 lint/type-check 단계(ruff/mypy) 확장
+  - Desktop/Backend 통합 smoke test 워크플로우 추가 검토
+- Blockers:
+  - 없음
+
+## Handoff
+- Goal: Confluence 주소를 요청 시 동적으로 받아 바로 테스트 가능하게 하고 인증을 id/pw 방식으로 전환
+- Changed:
+  - `ChatRequest`에 `confluence` override 객체(base_url/username/password/space_key) 추가
+  - 환경 변수 인증 키를 `CONFLUENCE_USERNAME/PASSWORD`로 변경
+  - `ChatService`에서 요청 단위 Confluence 연결 정보 우선 사용하도록 확장
+  - Confluence client는 GET만 호출하는 read-only 정책 유지
+- Contracts Updated:
+  - `POST /v1/chat` request에 `confluence` 필드 추가
+- Validation:
+  - `python -m compileall apps/backend/src`
+  - `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+- Next Actions:
+  - 요청 바디의 민감정보(id/pw) 마스킹 로깅 정책 적용
+  - Desktop 설정 화면에 id/pw/space/test-url 입력 UX 반영
+- Blockers:
+  - 없음
+
+## Handoff
+- Goal: Confluence 버전(Cloud/Server/DC)별 경로 차이를 자동/명시 모드로 처리
+- Changed:
+  - `confluence.version` 요청 필드와 `CONFLUENCE_VERSION` 환경 변수 추가
+  - Confluence client에 `mode`(`auto|cloud|server`) 도입
+  - auto 모드에서 cloud→server 순으로 systemInfo endpoint probe 후 API prefix 결정
+- Contracts Updated:
+  - `POST /v1/chat` request `confluence.version` 추가
+- Validation:
+  - `python -m compileall apps/backend/src`
+  - `cd apps/backend && python -m unittest discover -s tests -p 'test_*.py'`
+- Next Actions:
+  - 감지 실패 시 응답에 감지 로그 힌트 포함 여부 검토
+  - Atlassian Cloud 특화 인증(email+token) 옵션 병행 지원 검토
+- Blockers:
+  - 없음
