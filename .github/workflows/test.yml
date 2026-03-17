@@ -12,6 +12,33 @@ permissions:
   issues: write
 
 jobs:
+  atlassian-config-check:
+    name: Atlassian Config Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required Atlassian configuration
+        env:
+          ATLASSIAN_PW: ${{ secrets.ATLASSIAN_PW || vars.ATLASSIAN_PW }}
+          ATLASSIAN_URL: ${{ secrets.ATLASSIAN_URL || vars.ATLASSIAN_URL }}
+          ATLASSIAN_ID: ${{ secrets.ATLASSIAN_ID || vars.ATLASSIAN_ID }}
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for key in ATLASSIAN_PW ATLASSIAN_URL ATLASSIAN_ID; do
+            if [ -z "${!key:-}" ]; then
+              echo "❌ Missing required variable: ${key}" >&2
+              missing=1
+            else
+              echo "✅ Found required variable: ${key}"
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "One or more required Atlassian variables are missing." >&2
+            exit 1
+          fi
+
   typecheck:
     name: TypeScript Type Check
     runs-on: ubuntu-latest
