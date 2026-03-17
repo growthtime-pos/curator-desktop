@@ -12,11 +12,11 @@ permissions:
   issues: write
 
 jobs:
-  atlassian-config-check:
-    name: Atlassian Config Check
+  atlassian-url-check:
+    name: Atlassian URL Smoke Test
     runs-on: ubuntu-latest
     steps:
-      - name: Validate required Atlassian configuration
+      - name: Validate Atlassian credentials and fetch data
         env:
           ATLASSIAN_PW: ${{ secrets.ATLASSIAN_PW || vars.ATLASSIAN_PW }}
           ATLASSIAN_URL: ${{ secrets.ATLASSIAN_URL || vars.ATLASSIAN_URL }}
@@ -38,6 +38,29 @@ jobs:
             echo "One or more required Atlassian variables are missing." >&2
             exit 1
           fi
+
+          tmp_body=$(mktemp)
+          http_code=$(
+            curl -sS -L               --connect-timeout 10               --max-time 30               -u "${ATLASSIAN_ID}:${ATLASSIAN_PW}"               -H "Accept: application/json"               -o "$tmp_body"               -w "%{http_code}"               "$ATLASSIAN_URL"
+          )
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "❌ Atlassian request failed with HTTP ${http_code}" >&2
+            echo "Response preview:" >&2
+            head -c 300 "$tmp_body" >&2 || true
+            rm -f "$tmp_body"
+            exit 1
+          fi
+
+          body_size=$(wc -c < "$tmp_body" | tr -d ' ')
+          if [ "$body_size" -eq 0 ]; then
+            echo "❌ Atlassian response body is empty." >&2
+            rm -f "$tmp_body"
+            exit 1
+          fi
+
+          echo "✅ Atlassian request succeeded (HTTP ${http_code}, ${body_size} bytes)."
+          rm -f "$tmp_body"
 
   typecheck:
     name: TypeScript Type Check
