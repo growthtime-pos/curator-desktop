@@ -98,29 +98,7 @@ jobs:
               continue
             fi
 
-            if python3 - "$tmp_body" <<'PYJSON'
-          import json
-          import sys
-          from pathlib import Path
-          
-          body = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace").strip()
-          if not body:
-              print("❌ Confluence API response body is empty.", file=sys.stderr)
-              sys.exit(1)
-          
-          try:
-              payload = json.loads(body)
-          except json.JSONDecodeError:
-              print("❌ Response is not valid JSON (likely HTML login page).", file=sys.stderr)
-              sys.exit(1)
-          
-          results = payload.get("results")
-          if not isinstance(results, list):
-              print("❌ JSON response does not include a 'results' array.", file=sys.stderr)
-              sys.exit(1)
-          
-          print(f"✅ Confluence API returned content payload (results={len(results)}).")
-          PYJSON
+            if python3 -c 'import json,sys; from pathlib import Path; body=Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace").strip(); payload=(json.loads(body) if body else (_ for _ in ()).throw(SystemExit(print("❌ Confluence API response body is empty.", file=sys.stderr) or 1))); results=payload.get("results"); (None if isinstance(results,list) else (_ for _ in ()).throw(SystemExit(print("❌ JSON response does not include a 'results' array.", file=sys.stderr) or 1))); print(f"✅ Confluence API returned content payload (results={len(results)}).")' "$tmp_body"
             then
               success_url="$query_url"
               break
