@@ -12,6 +12,167 @@ permissions:
   issues: write
 
 jobs:
+  atlassian-url-check:
+    name: Confluence Backend Fetch Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Atlassian credentials and fetch Confluence content
+        env:
+          ATLASSIAN_PW: ${{ secrets.ATLASSIAN_PW || vars.ATLASSIAN_PW }}
+          ATLASSIAN_URL: ${{ secrets.ATLASSIAN_URL || vars.ATLASSIAN_URL }}
+          ATLASSIAN_ID: ${{ secrets.ATLASSIAN_ID || vars.ATLASSIAN_ID }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p atlassian-debug
+
+          missing=0
+          for key in ATLASSIAN_PW ATLASSIAN_URL ATLASSIAN_ID; do
+            if [ -z "${!key:-}" ]; then
+              echo "❌ Missing required variable: ${key}" >&2
+              missing=1
+            else
+              echo "✅ Found required variable: ${key}"
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "One or more required Atlassian variables are missing." >&2
+            exit 1
+          fi
+
+          normalized_input="${ATLASSIAN_URL%/}"
+          host_base=$(printf '%s' "$normalized_input" | sed -E 's#^(https?://[^/]+).*$#\1#')
+
+          if ! printf '%s' "$host_base" | grep -Eq '^https?://'; then
+            echo "❌ ATLASSIAN_URL must be a valid absolute URL (got: $ATLASSIAN_URL)" >&2
+            exit 1
+          fi
+
+          auth_b64=$(printf '%s' "${ATLASSIAN_ID}:${ATLASSIAN_PW}" | base64 | tr -d "\n")
+          auth_header="Authorization: Basic ${auth_b64}"
+          echo "✅ Using Basic auth header derived from ATLASSIAN_ID/ATLASSIAN_PW"
+
+          # 1) Authentication/license probe (helps explain 401/403 quickly)
+          auth_probe_url="${host_base}/wiki/rest/api/user/current"
+          auth_probe_code=$(curl -sS \
+            --connect-timeout 10 \
+            --max-time 30 \
+            -H "$auth_header" \
+            -H "Accept: application/json" \
+            -o atlassian-debug/auth-probe.body.txt \
+            -D atlassian-debug/auth-probe.headers.txt \
+            -w "%{http_code}" \
+            "$auth_probe_url")
+          echo "ℹ️ Auth probe status: ${auth_probe_code} (${auth_probe_url})"
+
+          # 2) Data fetch probes (content + space API). We intentionally avoid -L redirects.
+          candidates=(
+            "$normalized_input"
+            "$normalized_input/wiki/rest/api/content?limit=1"
+            "$normalized_input/rest/api/content?limit=1"
+            "$host_base/wiki/rest/api/content?limit=1"
+            "$host_base/wiki/rest/api/space?limit=1"
+            "$host_base/rest/api/content?limit=1"
+          )
+
+          declare -A seen
+          query_urls=()
+          for candidate in "${candidates[@]}"; do
+            normalized_candidate="${candidate%/}"
+            if [ -z "${seen[$normalized_candidate]:-}" ]; then
+              seen[$normalized_candidate]=1
+              query_urls+=("$normalized_candidate")
+            fi
+          done
+
+          printf '%s\n' "${query_urls[@]}" > atlassian-debug/candidate-urls.txt
+          echo "ℹ️ Trying Confluence endpoint(s) derived from ATLASSIAN_URL"
+
+          tmp_body=$(mktemp)
+          success_url=""
+          http_code="000"
+
+          for query_url in "${query_urls[@]}"; do
+            safe_name=$(printf '%s' "$query_url" | sed -E 's#[^a-zA-Z0-9._-]#_#g')
+
+            echo "➡️  Requesting: $query_url"
+            http_code=$(curl -sS \
+              --connect-timeout 10 \
+              --max-time 30 \
+              -H "$auth_header" \
+              -H "Accept: application/json" \
+              -D "atlassian-debug/${safe_name}.headers.txt" \
+              -o "$tmp_body" \
+              -w "%{http_code}" \
+              "$query_url")
+
+            cp "$tmp_body" "atlassian-debug/${safe_name}.body.txt"
+
+            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+              echo "⚠️ Non-2xx HTTP ${http_code} from ${query_url}" >&2
+              continue
+            fi
+
+            if python3 - "$tmp_body" <<'PYJSON'
+          import json
+          import sys
+          from pathlib import Path
+          
+          body = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace").strip()
+          if not body:
+              print("❌ Confluence API response body is empty.", file=sys.stderr)
+              sys.exit(1)
+          
+          try:
+              payload = json.loads(body)
+          except json.JSONDecodeError:
+              print("❌ Response is not valid JSON (likely HTML login page).", file=sys.stderr)
+              sys.exit(1)
+          
+          results = payload.get("results")
+          if not isinstance(results, list):
+              print("❌ JSON response does not include a 'results' array.", file=sys.stderr)
+              sys.exit(1)
+          
+          print(f"✅ Confluence API returned payload with results={len(results)}")
+          PYJSON
+            then
+              success_url="$query_url"
+              break
+            else
+              echo "⚠️ Endpoint returned non-Confluence JSON payload: ${query_url}" >&2
+            fi
+          done
+
+          if [ -z "$success_url" ]; then
+            echo "❌ Failed to fetch valid Confluence JSON from any derived endpoint." >&2
+            echo "Auth probe HTTP code: $auth_probe_code" >&2
+            if [ "$auth_probe_code" = "401" ]; then
+              echo "Hint: ATLASSIAN_ID/ATLASSIAN_PW authentication failed." >&2
+            elif [ "$auth_probe_code" = "403" ]; then
+              echo "Hint: account is authenticated but may lack Confluence product/page permission." >&2
+            fi
+            echo "Last HTTP code: $http_code" >&2
+            echo "Last response preview:" >&2
+            head -c 300 "$tmp_body" >&2 || true
+            rm -f "$tmp_body"
+            exit 1
+          fi
+
+          body_size=$(wc -c < "$tmp_body" | tr -d ' ')
+          echo "✅ Confluence backend fetch succeeded via ${success_url} (HTTP ${http_code}, ${body_size} bytes)."
+          rm -f "$tmp_body"
+
+      - name: Upload Atlassian debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlassian-debug
+          path: atlassian-debug/
+          if-no-files-found: ignore
+          retention-days: 14
+
   typecheck:
     name: TypeScript Type Check
     runs-on: ubuntu-latest
