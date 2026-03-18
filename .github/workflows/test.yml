@@ -39,38 +39,55 @@ jobs:
             exit 1
           fi
 
-          normalized_base="${ATLASSIAN_URL%/}"
-          case "$normalized_base" in
-            *"/rest/api/"*|*"/wiki/rest/api/"*)
-              query_url="${normalized_base%/}/content?limit=1"
-              ;;
-            *)
-              query_url="${normalized_base}/wiki/rest/api/content?limit=1"
-              ;;
-          esac
+          normalized_input="${ATLASSIAN_URL%/}"
+          host_base=$(printf '%s' "$normalized_input" | sed -E 's#^(https?://[^/]+).*$#\1#')
 
-          echo "ℹ️ Querying Confluence content API endpoint derived from ATLASSIAN_URL"
-
-          tmp_body=$(mktemp)
-
-          http_code=$(curl -sS -L \
-            --connect-timeout 10 \
-            --max-time 30 \
-            -u "${ATLASSIAN_ID}:${ATLASSIAN_PW}" \
-            -H "Accept: application/json" \
-            -o "$tmp_body" \
-            -w "%{http_code}" \
-            "$query_url")
-
-          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-            echo "❌ Atlassian request failed with HTTP ${http_code}" >&2
-            echo "Response preview:" >&2
-            head -c 300 "$tmp_body" >&2 || true
-            rm -f "$tmp_body"
+          if ! printf '%s' "$host_base" | grep -Eq '^https?://'; then
+            echo "❌ ATLASSIAN_URL must be a valid absolute URL (got: $ATLASSIAN_URL)" >&2
             exit 1
           fi
 
-          python3 - "$tmp_body" <<'PY'
+          candidates=(
+            "$normalized_input"
+            "$normalized_input/wiki/rest/api/content?limit=1"
+            "$host_base/wiki/rest/api/content?limit=1"
+            "$host_base/rest/api/content?limit=1"
+          )
+
+          declare -A seen
+          query_urls=()
+          for candidate in "${candidates[@]}"; do
+            normalized_candidate="${candidate%/}"
+            if [ -z "${seen[$normalized_candidate]:-}" ]; then
+              seen[$normalized_candidate]=1
+              query_urls+=("$normalized_candidate")
+            fi
+          done
+
+          echo "ℹ️ Trying Confluence content API endpoint(s) derived from ATLASSIAN_URL"
+
+          tmp_body=$(mktemp)
+          success_url=""
+          http_code="000"
+
+          for query_url in "${query_urls[@]}"; do
+            echo "➡️  Requesting: $query_url"
+
+            http_code=$(curl -sS \
+              --connect-timeout 10 \
+              --max-time 30 \
+              -u "${ATLASSIAN_ID}:${ATLASSIAN_PW}" \
+              -H "Accept: application/json" \
+              -o "$tmp_body" \
+              -w "%{http_code}" \
+              "$query_url")
+
+            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+              echo "⚠️ Non-2xx HTTP ${http_code} from ${query_url}" >&2
+              continue
+            fi
+
+            if python3 - "$tmp_body" <<'PYJSON'
           import json
           import sys
           from pathlib import Path
@@ -82,22 +99,36 @@ jobs:
           
           try:
               payload = json.loads(body)
-          except json.JSONDecodeError as exc:
-              print(f"❌ Confluence API did not return valid JSON: {exc}", file=sys.stderr)
-              print(body[:300], file=sys.stderr)
+          except json.JSONDecodeError:
+              print("❌ Response is not valid JSON (likely HTML login page).", file=sys.stderr)
               sys.exit(1)
           
           results = payload.get("results")
           if not isinstance(results, list):
-              print("❌ Confluence content response does not include a 'results' array.", file=sys.stderr)
-              print(body[:300], file=sys.stderr)
+              print("❌ JSON response does not include a 'results' array.", file=sys.stderr)
               sys.exit(1)
           
-          print(f"✅ Confluence API returned a valid content payload (results={len(results)}).")
-          PY
+          print(f"✅ Confluence API returned content payload (results={len(results)}).")
+          PYJSON
+            then
+              success_url="$query_url"
+              break
+            else
+              echo "⚠️ Endpoint returned non-Confluence JSON payload: ${query_url}" >&2
+            fi
+          done
+
+          if [ -z "$success_url" ]; then
+            echo "❌ Failed to fetch valid Confluence content JSON from any derived endpoint." >&2
+            echo "Last HTTP code: $http_code" >&2
+            echo "Last response preview:" >&2
+            head -c 300 "$tmp_body" >&2 || true
+            rm -f "$tmp_body"
+            exit 1
+          fi
 
           body_size=$(wc -c < "$tmp_body" | tr -d ' ')
-          echo "✅ Confluence backend fetch succeeded (HTTP ${http_code}, ${body_size} bytes)."
+          echo "✅ Confluence backend fetch succeeded via ${success_url} (HTTP ${http_code}, ${body_size} bytes)."
           rm -f "$tmp_body"
 
   typecheck:
