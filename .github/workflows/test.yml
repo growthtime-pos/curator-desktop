@@ -49,9 +49,21 @@ jobs:
             exit 1
           fi
 
+          auth_b64=$(printf '%s' "${ATLASSIAN_ID}:${ATLASSIAN_PW}" | base64 | tr -d "\n")
+          auth_header="Authorization: Basic ${auth_b64}"
+          echo "✅ Using Basic auth header derived from ATLASSIAN_ID/ATLASSIAN_PW"
+
           # 1) Authentication/license probe (helps explain 401/403 quickly)
           auth_probe_url="${host_base}/wiki/rest/api/user/current"
-          auth_probe_code=$(curl -sS             --connect-timeout 10             --max-time 30             -u "${ATLASSIAN_ID}:${ATLASSIAN_PW}"             -H "Accept: application/json"             -o atlassian-debug/auth-probe.body.txt             -D atlassian-debug/auth-probe.headers.txt             -w "%{http_code}"             "$auth_probe_url")
+          auth_probe_code=$(curl -sS \
+            --connect-timeout 10 \
+            --max-time 30 \
+            -H "$auth_header" \
+            -H "Accept: application/json" \
+            -o atlassian-debug/auth-probe.body.txt \
+            -D atlassian-debug/auth-probe.headers.txt \
+            -w "%{http_code}" \
+            "$auth_probe_url")
           echo "ℹ️ Auth probe status: ${auth_probe_code} (${auth_probe_url})"
 
           # 2) Data fetch probes (content + space API). We intentionally avoid -L redirects.
@@ -85,7 +97,15 @@ jobs:
             safe_name=$(printf '%s' "$query_url" | sed -E 's#[^a-zA-Z0-9._-]#_#g')
 
             echo "➡️  Requesting: $query_url"
-            http_code=$(curl -sS               --connect-timeout 10               --max-time 30               -u "${ATLASSIAN_ID}:${ATLASSIAN_PW}"               -H "Accept: application/json"               -D "atlassian-debug/${safe_name}.headers.txt"               -o "$tmp_body"               -w "%{http_code}"               "$query_url")
+            http_code=$(curl -sS \
+              --connect-timeout 10 \
+              --max-time 30 \
+              -H "$auth_header" \
+              -H "Accept: application/json" \
+              -D "atlassian-debug/${safe_name}.headers.txt" \
+              -o "$tmp_body" \
+              -w "%{http_code}" \
+              "$query_url")
 
             cp "$tmp_body" "atlassian-debug/${safe_name}.body.txt"
 
