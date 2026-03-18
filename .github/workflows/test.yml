@@ -24,6 +24,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          mkdir -p atlassian-debug
+
           missing=0
           for key in ATLASSIAN_PW ATLASSIAN_URL ATLASSIAN_ID; do
             if [ -z "${!key:-}" ]; then
@@ -40,15 +42,19 @@ jobs:
           fi
 
           normalized_input="${ATLASSIAN_URL%/}"
-          host_base=$(printf '%s' "$normalized_input" | sed -E 's#^(https?://[^/]+).*$#\1#')
 
+          # Extract scheme://host for fallback endpoint construction.
+          host_base=$(printf '%s' "$normalized_input" | sed -E 's#^(https?://[^/]+).*$#\1#')
           if ! printf '%s' "$host_base" | grep -Eq '^https?://'; then
             echo "❌ ATLASSIAN_URL must be a valid absolute URL (got: $ATLASSIAN_URL)" >&2
             exit 1
           fi
 
+          # Build likely Confluence API endpoints. We do not follow redirects, because
+          # redirects often land on HTML login pages that look like false positives.
           candidates=(
             "$normalized_input"
+            "$normalized_input/rest/api/content?limit=1"
             "$normalized_input/wiki/rest/api/content?limit=1"
             "$host_base/wiki/rest/api/content?limit=1"
             "$host_base/rest/api/content?limit=1"
@@ -64,6 +70,7 @@ jobs:
             fi
           done
 
+          printf '%s\n' "${query_urls[@]}" > atlassian-debug/candidate-urls.txt
           echo "ℹ️ Trying Confluence content API endpoint(s) derived from ATLASSIAN_URL"
 
           tmp_body=$(mktemp)
@@ -71,16 +78,20 @@ jobs:
           http_code="000"
 
           for query_url in "${query_urls[@]}"; do
-            echo "➡️  Requesting: $query_url"
+            safe_name=$(printf '%s' "$query_url" | sed -E 's#[^a-zA-Z0-9._-]#_#g')
 
+            echo "➡️  Requesting: $query_url"
             http_code=$(curl -sS \
               --connect-timeout 10 \
               --max-time 30 \
               -u "${ATLASSIAN_ID}:${ATLASSIAN_PW}" \
               -H "Accept: application/json" \
+              -D "atlassian-debug/${safe_name}.headers.txt" \
               -o "$tmp_body" \
               -w "%{http_code}" \
               "$query_url")
+
+            cp "$tmp_body" "atlassian-debug/${safe_name}.body.txt"
 
             if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
               echo "⚠️ Non-2xx HTTP ${http_code} from ${query_url}" >&2
@@ -130,6 +141,15 @@ jobs:
           body_size=$(wc -c < "$tmp_body" | tr -d ' ')
           echo "✅ Confluence backend fetch succeeded via ${success_url} (HTTP ${http_code}, ${body_size} bytes)."
           rm -f "$tmp_body"
+
+      - name: Upload Atlassian debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlassian-debug
+          path: atlassian-debug/
+          if-no-files-found: ignore
+          retention-days: 14
 
   typecheck:
     name: TypeScript Type Check
