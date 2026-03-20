@@ -11,7 +11,7 @@ export default defineConfig({
     ['list'],
   ],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://127.0.0.1:4173',
     trace: 'on-first-retry',
     screenshot: 'on',
   },
@@ -23,7 +23,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npx vite --config vite.config.test.ts',
-    url: 'http://localhost:5173',
+    url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },

@@ -1,0 +1,17 @@
+{
+  "tools": [
+    {
+      "name": "list_workspace_overview",
+      "description": "Return the top-level mock workspace directories bundled with this skill.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "command": ["node", "scripts/list-overview.js"],
+      "allowedWorkdir": ".",
+      "timeoutMs": 15000
+    }
+  ]
+}
