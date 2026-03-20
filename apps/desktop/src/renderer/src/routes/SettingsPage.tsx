@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { AppSettings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
@@ -21,7 +21,6 @@ const inputStyle: CSSProperties = {
   fontFamily: 'var(--font-mono)',
   color: 'var(--text-primary)',
   outline: 'none',
-  transition: 'border-color 0.15s ease',
   width: '100%',
 };
 
@@ -37,10 +36,43 @@ const sectionTitleStyle: CSSProperties = {
   borderBottom: '1px solid var(--border-subtle)',
 };
 
+const hintStyle: CSSProperties = {
+  fontSize: 11,
+  color: 'var(--text-muted)',
+  fontFamily: 'var(--font-mono)',
+  lineHeight: 1.5,
+};
+
 export function SettingsPage() {
   const [form, setForm] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [maskedApiKey, setMaskedApiKey] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const settings = await window.electronAPI?.settings?.loadMasked?.();
+        if (!settings || cancelled) return;
+
+        const { maskedApiKey: masked, ...rest } = settings;
+        setForm(rest);
+        setMaskedApiKey(masked);
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(error instanceof Error ? error.message : 'Failed to load settings.');
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateField = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -49,9 +81,19 @@ export function SettingsPage() {
   const handleSave = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
-    await window.electronAPI?.settings?.save?.(form);
-    setSavedAt(new Date().toLocaleString('ko-KR'));
-    setSaving(false);
+    setLoadError(null);
+    try {
+      await window.electronAPI?.settings?.save?.(form);
+      setSavedAt(new Date().toLocaleString('ko-KR'));
+      if (form.apiKey) {
+        setMaskedApiKey(`${form.apiKey.slice(0, 2)}${'*'.repeat(Math.max(form.apiKey.length - 4, 0))}${form.apiKey.slice(-2)}`);
+        setForm((prev) => ({ ...prev, apiKey: '' }));
+      }
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Failed to save settings.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -65,7 +107,7 @@ export function SettingsPage() {
     >
       <div
         style={{
-          maxWidth: 600,
+          maxWidth: 720,
           margin: '0 auto',
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border-primary)',
@@ -73,7 +115,6 @@ export function SettingsPage() {
           padding: '28px 32px',
         }}
       >
-        {/* Header */}
         <div style={{ marginBottom: 8 }}>
           <div
             style={{
@@ -91,7 +132,7 @@ export function SettingsPage() {
                 fontWeight: 700,
               }}
             >
-              ◆
+              {'</>'}
             </span>
             <h1
               style={{
@@ -102,7 +143,7 @@ export function SettingsPage() {
                 color: 'var(--text-primary)',
               }}
             >
-              설정
+              Settings
             </h1>
           </div>
           <p
@@ -113,84 +154,108 @@ export function SettingsPage() {
               color: 'var(--text-muted)',
             }}
           >
-            Curator Desktop 연결 및 동기화 설정을 관리합니다.
+            Configure the OpenAI-compatible provider, protocol, and skill discovery roots for Curator Desktop.
           </p>
         </div>
 
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column' }}>
-          {/* API Section */}
-          <div style={sectionTitleStyle}>api configuration</div>
+          <div style={sectionTitleStyle}>provider</div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={labelStyle}>
-              <span>
-                <span style={{ color: 'var(--text-muted)' }}>$</span> API Base URL
-              </span>
+              <span>API Base URL</span>
               <input
                 value={form.apiBaseUrl}
-                onChange={(e) => updateField('apiBaseUrl', e.target.value)}
-                placeholder="https://api.internal.example"
+                onChange={(event) => updateField('apiBaseUrl', event.target.value)}
+                placeholder="https://api.openai-compatible.local/v1"
                 style={inputStyle}
               />
             </label>
 
             <label style={labelStyle}>
-              <span>
-                <span style={{ color: 'var(--text-muted)' }}>$</span> API Key
-              </span>
+              <span>API Key</span>
               <input
                 type="password"
                 value={form.apiKey}
-                onChange={(e) => updateField('apiKey', e.target.value)}
+                onChange={(event) => updateField('apiKey', event.target.value)}
                 placeholder="sk-..."
                 style={inputStyle}
               />
+              {maskedApiKey ? (
+                <span style={hintStyle}>Stored key: {maskedApiKey}. Leave blank to keep the existing key.</span>
+              ) : (
+                <span style={hintStyle}>Leave blank if you only want to use the mock backend in local UI tests.</span>
+              )}
             </label>
 
             <label style={labelStyle}>
-              <span>
-                <span style={{ color: 'var(--text-muted)' }}>$</span> Model
-              </span>
+              <span>Model</span>
               <input
                 value={form.model}
-                onChange={(e) => updateField('model', e.target.value)}
+                onChange={(event) => updateField('model', event.target.value)}
                 placeholder="gpt-4.1-mini"
                 style={inputStyle}
               />
             </label>
+
+            <label style={labelStyle}>
+              <span>Provider Protocol</span>
+              <select
+                value={form.providerProtocol}
+                onChange={(event) => updateField('providerProtocol', event.target.value as AppSettings['providerProtocol'])}
+                style={inputStyle}
+              >
+                <option value="chat">chat</option>
+                <option value="responses">responses</option>
+              </select>
+            </label>
+
+            <label style={labelStyle}>
+              <span>Skill Root Paths</span>
+              <textarea
+                value={form.skillRootPaths.join('\n')}
+                onChange={(event) =>
+                  updateField(
+                    'skillRootPaths',
+                    event.target.value
+                      .split(/\r?\n/)
+                      .map((value) => value.trim())
+                      .filter(Boolean),
+                  )
+                }
+                placeholder={'.codex/skills\nC:\\Users\\you\\.codex\\skills'}
+                rows={4}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: 88 }}
+              />
+              <span style={hintStyle}>One path per line. Relative paths resolve from the repository root.</span>
+            </label>
           </div>
 
-          {/* Confluence Section */}
-          <div style={sectionTitleStyle}>confluence</div>
+          <div style={sectionTitleStyle}>app defaults</div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={labelStyle}>
-              <span>
-                <span style={{ color: 'var(--text-muted)' }}>$</span> Space Key
-              </span>
+              <span>Confluence Space Key</span>
               <input
                 value={form.confluenceSpaceKey}
-                onChange={(e) => updateField('confluenceSpaceKey', e.target.value)}
+                onChange={(event) => updateField('confluenceSpaceKey', event.target.value)}
                 placeholder="ENG"
                 style={inputStyle}
               />
             </label>
 
             <label style={labelStyle}>
-              <span>
-                <span style={{ color: 'var(--text-muted)' }}>$</span> 동기화 주기 (분)
-              </span>
+              <span>Sync Interval Minutes</span>
               <input
                 type="number"
                 min={1}
                 value={form.syncIntervalMinutes}
-                onChange={(e) => updateField('syncIntervalMinutes', Number(e.target.value) || 1)}
+                onChange={(event) => updateField('syncIntervalMinutes', Number(event.target.value) || 1)}
                 style={inputStyle}
               />
             </label>
           </div>
 
-          {/* Save */}
           <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
               type="submit"
@@ -205,26 +270,13 @@ export function SettingsPage() {
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: saving ? 'wait' : 'pointer',
-                transition: 'all 0.15s ease',
                 opacity: saving ? 0.7 : 1,
               }}
             >
-              {saving ? '저장 중...' : '설정 저장'}
+              {saving ? 'Saving...' : 'Save Settings'}
             </button>
-            {savedAt && (
-              <span
-                style={{
-                  fontSize: 11,
-                  fontFamily: 'var(--font-mono)',
-                  color: 'var(--green)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                ✓ 마지막 저장: {savedAt}
-              </span>
-            )}
+            {savedAt && <span style={{ ...hintStyle, color: 'var(--green)' }}>Saved at {savedAt}</span>}
+            {loadError && <span style={{ ...hintStyle, color: 'var(--red)' }}>{loadError}</span>}
           </div>
         </form>
       </div>

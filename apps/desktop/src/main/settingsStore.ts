@@ -46,7 +46,13 @@ const maskApiKey = (apiKey: string) => {
 
 export const settingsStore = {
   async save(settings: AppSettings) {
-    const payload = encryptSettings(settings);
+    const current = await this.load();
+    const normalized = {
+      ...current,
+      ...settings,
+      apiKey: settings.apiKey || current.apiKey,
+    };
+    const payload = encryptSettings(normalized);
     const storePath = getStorePath();
 
     await fs.mkdir(path.dirname(storePath), { recursive: true });

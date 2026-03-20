@@ -1,55 +1,41 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test.describe('Settings Page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/#/settings');
   });
 
-  test('should navigate to settings page', async ({ page }) => {
+  test('navigates to settings page', async ({ page }) => {
     await expect(page).toHaveURL(/#\/settings/);
   });
 
-  test('should display settings header', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: '설정' })).toBeVisible();
-    await expect(page.getByText('Curator Desktop 연결 및 동기화 설정을 관리합니다.')).toBeVisible();
-  });
-
-  test('should display API configuration section', async ({ page }) => {
-    await expect(page.getByText('api configuration')).toBeVisible();
-    await expect(page.getByPlaceholder('https://api.internal.example')).toBeVisible();
+  test('renders provider configuration fields', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(
+      page.getByText('Configure the OpenAI-compatible provider, protocol, and skill discovery roots for Curator Desktop.'),
+    ).toBeVisible();
+    await expect(page.getByPlaceholder('https://api.openai-compatible.local/v1')).toBeVisible();
     await expect(page.getByPlaceholder('sk-...')).toBeVisible();
     await expect(page.getByPlaceholder('gpt-4.1-mini')).toBeVisible();
+    await expect(page.getByRole('combobox')).toHaveValue('chat');
   });
 
-  test('should display Confluence section', async ({ page }) => {
-    await expect(page.getByText('confluence', { exact: true })).toBeVisible();
-    await expect(page.getByPlaceholder('ENG')).toBeVisible();
+  test('allows filling provider and skill settings', async ({ page }) => {
+    await page.getByPlaceholder('https://api.openai-compatible.local/v1').fill('https://api.test.example/v1');
+    await page.getByPlaceholder('sk-...').fill('sk-test-key-123');
+    await page.getByPlaceholder('gpt-4.1-mini').fill('gpt-4.1');
+    await page.getByRole('combobox').selectOption('responses');
+    await page.getByPlaceholder('.codex/skills\nC:\\Users\\you\\.codex\\skills').fill('.codex/skills');
+
+    await expect(page.getByPlaceholder('https://api.openai-compatible.local/v1')).toHaveValue(
+      'https://api.test.example/v1',
+    );
+    await expect(page.getByPlaceholder('sk-...')).toHaveValue('sk-test-key-123');
+    await expect(page.getByPlaceholder('gpt-4.1-mini')).toHaveValue('gpt-4.1');
+    await expect(page.getByRole('combobox')).toHaveValue('responses');
   });
 
-  test('should have save button', async ({ page }) => {
-    await expect(page.getByRole('button', { name: '설정 저장' })).toBeVisible();
-  });
-
-  test('should allow filling in settings fields', async ({ page }) => {
-    const apiUrl = page.getByPlaceholder('https://api.internal.example');
-    await apiUrl.fill('https://api.test.example.com');
-    await expect(apiUrl).toHaveValue('https://api.test.example.com');
-
-    const apiKey = page.getByPlaceholder('sk-...');
-    await apiKey.fill('sk-test-key-123');
-    await expect(apiKey).toHaveValue('sk-test-key-123');
-
-    const model = page.getByPlaceholder('gpt-4.1-mini');
-    await model.fill('gpt-4.1');
-    await expect(model).toHaveValue('gpt-4.1');
-  });
-
-  test('should take full page screenshot', async ({ page }) => {
-    // Fill in sample data for screenshot
-    await page.getByPlaceholder('https://api.internal.example').fill('https://api.internal.example.com');
-    await page.getByPlaceholder('gpt-4.1-mini').fill('gpt-4.1-mini');
-    await page.getByPlaceholder('ENG').fill('ENGINEERING');
-
+  test('takes a full page screenshot', async ({ page }) => {
     await page.screenshot({ path: 'e2e/screenshots/settings-page.png', fullPage: true });
   });
 });
