@@ -19,6 +19,17 @@ def test_normalize_confluence_base_url_keeps_existing_wiki() -> None:
     )
 
 
+def test_credentials_uses_token_before_password() -> None:
+    credentials = AtlassianCredentials(
+        base_url="https://example.atlassian.net/wiki",
+        username="user@example.com",
+        token="preferred-token",
+        password="fallback-password",
+    )
+
+    assert credentials.auth_secret == "preferred-token"
+
+
 @pytest.mark.integration
 def test_list_spaces_with_real_atlassian_env() -> None:
     if os.environ.get("RUN_CONFLUENCE_INTEGRATION") != "1":
@@ -26,12 +37,18 @@ def test_list_spaces_with_real_atlassian_env() -> None:
 
     url = os.environ.get("ATLASSIAN_URL")
     username = os.environ.get("ATLASSIAN_ID")
+    token = os.environ.get("ATLASSIAN_TOKEN")
     password = os.environ.get("ATLASSIAN_PW")
 
-    if not (url and username and password):
-        pytest.skip("ATLASSIAN_URL, ATLASSIAN_ID, ATLASSIAN_PW are required for integration tests")
+    if not (url and username and (token or password)):
+        pytest.skip("ATLASSIAN_URL, ATLASSIAN_ID and ATLASSIAN_TOKEN(or ATLASSIAN_PW) are required")
 
-    credentials = AtlassianCredentials(base_url=url, username=username, password=password)
+    credentials = AtlassianCredentials(
+        base_url=url,
+        username=username,
+        token=token or "",
+        password=password or "",
+    )
     client = ConfluenceClient(credentials)
 
     spaces = list_spaces(client, limit=1)

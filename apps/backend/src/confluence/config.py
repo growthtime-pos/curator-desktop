@@ -8,15 +8,21 @@ import os
 class AtlassianCredentials:
     base_url: str
     username: str
-    password: str
+    token: str = ""
+    password: str = ""
 
     @classmethod
     def from_env(cls) -> "AtlassianCredentials":
         return cls(
             base_url=os.environ.get("ATLASSIAN_URL", "").strip(),
             username=os.environ.get("ATLASSIAN_ID", "").strip(),
+            token=os.environ.get("ATLASSIAN_TOKEN", "").strip(),
             password=os.environ.get("ATLASSIAN_PW", "").strip(),
         )
+
+    @property
+    def auth_secret(self) -> str:
+        return self.token or self.password
 
     def validate(self) -> None:
         missing = []
@@ -24,8 +30,8 @@ class AtlassianCredentials:
             missing.append("ATLASSIAN_URL")
         if not self.username:
             missing.append("ATLASSIAN_ID")
-        if not self.password:
-            missing.append("ATLASSIAN_PW")
+        if not self.auth_secret:
+            missing.append("ATLASSIAN_TOKEN or ATLASSIAN_PW")
         if missing:
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 

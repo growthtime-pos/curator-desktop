@@ -10,11 +10,12 @@ on:
 
 jobs:
   confluence-integration:
-    name: Confluence Integration (ATLASSIAN_URL/ID/PW)
+    name: Confluence Integration (ATLASSIAN_URL/ID/TOKEN)
     runs-on: ubuntu-latest
     env:
       ATLASSIAN_URL: ${{ secrets.ATLASSIAN_URL || vars.ATLASSIAN_URL }}
       ATLASSIAN_ID: ${{ secrets.ATLASSIAN_ID || vars.ATLASSIAN_ID }}
+      ATLASSIAN_TOKEN: ${{ secrets.ATLASSIAN_TOKEN || vars.ATLASSIAN_TOKEN }}
       ATLASSIAN_PW: ${{ secrets.ATLASSIAN_PW || vars.ATLASSIAN_PW }}
       RUN_CONFLUENCE_INTEGRATION: "1"
     steps:
@@ -36,7 +37,10 @@ jobs:
         run: |
           test -n "$ATLASSIAN_URL"
           test -n "$ATLASSIAN_ID"
-          test -n "$ATLASSIAN_PW"
+          if [ -z "$ATLASSIAN_TOKEN" ] && [ -z "$ATLASSIAN_PW" ]; then
+            echo "Either ATLASSIAN_TOKEN or ATLASSIAN_PW must be provided"
+            exit 1
+          fi
 
       - name: Run Confluence integration test
         working-directory: apps/backend

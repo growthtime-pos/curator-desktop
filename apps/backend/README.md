@@ -4,12 +4,17 @@ FastAPI 기반 백엔드 애플리케이션입니다.
 
 ## Confluence 수집 API
 
-Confluence 데이터를 URL/ID/PW 기반으로 수집할 수 있도록 엔드포인트를 제공합니다.
+Confluence 데이터를 URL/ID/TOKEN(우선), PW(폴백) 기반으로 수집할 수 있도록 엔드포인트를 제공합니다.
+
+### 인증 우선순위
+
+1. `ATLASSIAN_TOKEN` (권장)
+2. `ATLASSIAN_PW` (토큰이 없을 때 폴백)
 
 ### 엔드포인트
 
 - `GET /confluence/health`
-  - 환경변수 `ATLASSIAN_URL`, `ATLASSIAN_ID`, `ATLASSIAN_PW`를 사용해 연결 확인
+  - 환경변수 `ATLASSIAN_URL`, `ATLASSIAN_ID`, `ATLASSIAN_TOKEN`/`ATLASSIAN_PW`를 사용해 연결 확인
 - `POST /confluence/spaces`
   - Space 목록 조회
 - `POST /confluence/search`
@@ -45,6 +50,7 @@ uv run pytest -q
 ```bash
 export ATLASSIAN_URL="https://your-domain.atlassian.net/wiki"
 export ATLASSIAN_ID="your-id"
-export ATLASSIAN_PW="your-password-or-api-token"
+export ATLASSIAN_TOKEN="your-confluence-api-token"   # preferred
+# export ATLASSIAN_PW="your-password"                # fallback
 uv run pytest -q -m integration
 ```

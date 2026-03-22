@@ -26,7 +26,7 @@ class ConfluenceClient:
             url,
             params=params,
             headers=self._build_headers(),
-            auth=(self.credentials.username, self.credentials.password),
+            auth=(self.credentials.username, self.credentials.auth_secret),
             timeout=self.timeout,
         )
         response.raise_for_status()
